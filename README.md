@@ -248,14 +248,6 @@ def start(_type, _args) do
 end
 ```
 
-## Version Roadmap
-
-- **0.1** - ETS backend, basic graph memory, semantic search
-- **0.2** - Postgres backend (optional dependency)
-- **0.3** - Reflection adapters, memory consolidation
-- **0.4** - Distributed support (Mnesia/Nebulex)
-- **1.0** - Stable API
-
 ## License
 
-MIT License - see LICENSE file.
+Apache 2.0 License - see LICENSE file.

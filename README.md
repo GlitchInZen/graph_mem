@@ -1,8 +1,5 @@
 # GraphMem
 
-[![Hex.pm](https://img.shields.io/hexpm/v/graph_mem.svg)](https://hex.pm/packages/graph_mem)
-[![Docs](https://img.shields.io/badge/hex-docs-blue.svg)](https://hexdocs.pm/graph_mem)
-
 Graph-based long-term memory for AI agents. GraphMem provides persistent memory with automatic relationship discovery, semantic search, and graph-based retrieval.
 
 ## Features

@@ -7,14 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-## [0.1.0] - 2026-01-24
+## [0.1.0] - 2026-01-25
 
 ### Added
 
 - Initial release
 - Core memory structs (`Memory`, `Edge`)
 - Access control with `AccessContext`
-- Backend behaviour with ETS implementation
+- Backend behaviour with pluggable implementations
+- **ETS Backend** - In-memory storage (default)
+- **Postgres Backend** - Persistent storage with pgvector
+  - Efficient vector similarity search via pgvector
+  - Graph expansion via recursive CTEs
+  - Migration generator: `mix graph_mem.gen.migration`
 - Embedding adapter behaviour with Ollama and OpenAI implementations
 - Reflection adapter behaviour
 - Agent-facing API: `remember/3`, `recall/3`, `recall_context/3`, `reflect/2`

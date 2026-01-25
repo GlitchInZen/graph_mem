@@ -352,14 +352,6 @@ config :graph_mem,
   http_retry: 2          # 2 retry attempts
 ```
 
-## Roadmap
-
-- **0.1** - Core API, ETS backend, Ollama/OpenAI adapters
-- **0.2** - PostgreSQL backend, migrations, graph expansion
-- **0.3** - Reflection adapters, memory consolidation
-- **0.4** - Telemetry, distributed support
-- **1.0** - Stable API
-
 ## License
 
-MIT License - see [LICENSE](LICENSE) file.
+Apache 2.0 License - see [LICENSE](LICENSE) file.

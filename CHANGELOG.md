@@ -14,13 +14,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial release
 - Core memory structs (`Memory`, `Edge`)
 - Access control with `AccessContext`
+- Centralized configuration via `GraphMem.Config`
 - Backend behaviour with pluggable implementations
-- **ETS Backend** - In-memory storage (default)
-- **Postgres Backend** - Persistent storage with pgvector
-  - Efficient vector similarity search via pgvector
-  - Graph expansion via recursive CTEs
+- **ETS Backend** - In-memory storage (fallback for development)
+- **Postgres Backend** - Persistent storage with pgvector (recommended)
+  - Efficient vector similarity search via pgvector `<=>` operator
+  - Graph expansion via recursive CTEs with parameterized queries
   - Migration generator: `mix graph_mem.gen.migration`
-- Embedding adapter behaviour with Ollama and OpenAI implementations
+  - Auto-selected when `:repo` is configured
+- Embedding adapter behaviour with implementations:
+  - **Ollama adapter** (default) - Local embeddings
+  - **OpenAI adapter** - Cloud embeddings
+  - HTTP timeout and retry configuration
 - Reflection adapter behaviour
 - Agent-facing API: `remember/3`, `recall/3`, `recall_context/3`, `reflect/2`
 - Graph operations: `link/5`, `neighbors/4`, `expand/3`
@@ -29,3 +34,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Memory reduction and context formatting for LLM prompts
 - Multi-agent isolation with scopes (private/shared/global)
 - Multi-tenancy support
+- Confidence-based scope enforcement (low confidence → private)
+
+### Security
+
+- Fixed SQL injection vulnerability in recursive graph traversal
+- All Postgres queries now use parameterized statements

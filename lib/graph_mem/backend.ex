@@ -167,9 +167,13 @@ defmodule GraphMem.Backend do
 
   @doc """
   Returns the currently configured backend module.
+
+  Uses `GraphMem.Config.backend/0` for dynamic backend selection:
+  - Postgres when `:repo` is configured and Ecto is available
+  - ETS as fallback for zero-dependency usage
   """
   @spec get_backend() :: module()
   def get_backend do
-    Application.get_env(:graph_mem, :backend, GraphMem.Backends.ETS)
+    GraphMem.Config.backend()
   end
 end

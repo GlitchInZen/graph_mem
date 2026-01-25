@@ -116,7 +116,23 @@ if Code.ensure_loaded?(Ecto) do
 
       changeset = MemorySchema.changeset(%MemorySchema{}, attrs)
 
-      case repo.insert(changeset, on_conflict: :replace_all, conflict_target: :id) do
+      on_conflict_opts = [
+        set: [
+          type: attrs.type,
+          summary: attrs.summary,
+          content: attrs.content,
+          embedding: attrs.embedding,
+          importance: attrs.importance,
+          confidence: attrs.confidence,
+          scope: attrs.scope,
+          tags: attrs.tags,
+          metadata: attrs.metadata,
+          session_id: attrs.session_id,
+          updated_at: attrs.updated_at
+        ]
+      ]
+
+      case repo.insert(changeset, on_conflict: on_conflict_opts, conflict_target: :id) do
         {:ok, schema} ->
           {:ok, schema_to_memory(schema)}
 
@@ -478,7 +494,7 @@ if Code.ensure_loaded?(Ecto) do
     end
 
     defp traverse_graph(seed_ids, depth, min_weight, min_confidence, limit, ctx, repo) do
-      scope_conditions = build_scope_conditions(ctx)
+      {scope_sql, scope_params, _next_param_idx} = build_scope_conditions_parameterized(ctx, 6)
 
       query = """
       WITH RECURSIVE graph_traversal AS (
@@ -491,7 +507,7 @@ if Code.ensure_loaded?(Ecto) do
         FROM graph_mem_memories m
         WHERE m.id = ANY($1)
           AND m.confidence >= $4
-          #{scope_conditions}
+          #{scope_sql}
 
         UNION ALL
 
@@ -508,7 +524,7 @@ if Code.ensure_loaded?(Ecto) do
           AND e.weight >= $3
           AND m.confidence >= $4
           AND NOT (m.id = ANY(gt.path))
-          #{scope_conditions}
+          #{scope_sql}
       )
       SELECT DISTINCT ON (id) *
       FROM graph_traversal
@@ -516,7 +532,10 @@ if Code.ensure_loaded?(Ecto) do
       LIMIT $5
       """
 
-      {:ok, result} = repo.query(query, [seed_ids, depth, min_weight, min_confidence, limit])
+      base_params = [seed_ids, depth, min_weight, min_confidence, limit]
+      all_params = base_params ++ scope_params
+
+      {:ok, result} = repo.query(query, all_params)
 
       memories = parse_memory_rows(result.rows, result.columns)
 
@@ -537,31 +556,39 @@ if Code.ensure_loaded?(Ecto) do
       {memories, edges}
     end
 
-    defp build_scope_conditions(%AccessContext{} = ctx) do
-      conditions = ["(m.scope = 'private' AND m.agent_id = '#{ctx.agent_id}')"]
+    defp build_scope_conditions_parameterized(%AccessContext{} = ctx, start_param_idx) do
+      can_shared = AccessContext.can_read?(ctx, "shared")
+      can_global = AccessContext.can_read?(ctx, "global")
 
-      conditions =
-        if AccessContext.can_read?(ctx, "shared") do
-          tenant_clause =
-            if ctx.tenant_id do
-              " AND m.tenant_id = '#{ctx.tenant_id}'"
-            else
-              ""
-            end
+      conditions = []
+      params = []
+      idx = start_param_idx
 
-          conditions ++ ["(m.scope = 'shared'#{tenant_clause})"]
+      {conditions, params, idx} =
+        {conditions ++ ["(m.scope = 'private' AND m.agent_id = $#{idx})"],
+         params ++ [ctx.agent_id], idx + 1}
+
+      {conditions, params, idx} =
+        if can_shared do
+          if ctx.tenant_id do
+            {conditions ++ ["(m.scope = 'shared' AND m.tenant_id = $#{idx})"],
+             params ++ [ctx.tenant_id], idx + 1}
+          else
+            {conditions ++ ["(m.scope = 'shared')"], params, idx}
+          end
         else
-          conditions
+          {conditions, params, idx}
         end
 
-      conditions =
-        if AccessContext.can_read?(ctx, "global") do
-          conditions ++ ["(m.scope = 'global')"]
+      {conditions, params, idx} =
+        if can_global do
+          {conditions ++ ["(m.scope = 'global')"], params, idx}
         else
-          conditions
+          {conditions, params, idx}
         end
 
-      "AND (" <> Enum.join(conditions, " OR ") <> ")"
+      scope_sql = "AND (" <> Enum.join(conditions, " OR ") <> ")"
+      {scope_sql, params, idx}
     end
 
     defp parse_memory_rows(rows, columns) do

@@ -87,7 +87,7 @@ defmodule GraphMem.EmbeddingAdapter do
   """
   @spec get_adapter() :: module() | nil
   def get_adapter do
-    Application.get_env(:graph_mem, :embedding_adapter)
+    GraphMem.Config.embedding_adapter()
   end
 
   @doc """

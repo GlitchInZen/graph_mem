@@ -2,7 +2,7 @@ defmodule GraphMem.MixProject do
   use Mix.Project
 
   @version "0.1.0"
-  @source_url "https://github.com/yourname/graph_mem"
+  @source_url "https://github.com/GlitchInZen/graph_mem"
 
   def project do
     [
@@ -53,11 +53,11 @@ defmodule GraphMem.MixProject do
 
   defp package do
     [
-      licenses: ["MIT"],
+      licenses: ["Apache-2.0"],
       links: %{
         "GitHub" => @source_url
       },
-      maintainers: ["Your Name"],
+      maintainers: ["Jon Trembley"],
       files: ~w(lib priv .formatter.exs mix.exs README.md LICENSE CHANGELOG.md)
     ]
   end

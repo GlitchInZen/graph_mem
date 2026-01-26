@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Web API** - HTTP REST API for external access to memory operations
+  - All core operations: create, list, get, delete memories
+  - Semantic recall and context endpoints
+  - Reflection generation endpoint
+  - Graph operations: create edges, get neighbors, expand graph
+  - CORS support via `cors_plug`
+  - Configurable via `api_enabled` and `api_port` options
+- New dependencies: `plug_cowboy`, `plug`, `cors_plug`
+
 ## [0.1.0] - 2026-01-25
 
 ### Added

@@ -326,6 +326,97 @@ def start(_type, _args) do
 end
 ```
 
+## Web API
+
+GraphMem includes an optional HTTP API for accessing memory operations from external services.
+
+### Configuration
+
+```elixir
+config :graph_mem,
+  api_enabled: true,
+  api_port: 4000
+```
+
+### Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| `GET` | `/health` | Health check |
+| `POST` | `/api/agents/:agent_id/memories` | Create a memory |
+| `GET` | `/api/agents/:agent_id/memories` | List memories |
+| `GET` | `/api/agents/:agent_id/memories/:id` | Get a memory |
+| `DELETE` | `/api/agents/:agent_id/memories/:id` | Delete a memory |
+| `GET` | `/api/agents/:agent_id/memories/recall?q=...` | Semantic recall |
+| `GET` | `/api/agents/:agent_id/memories/context?q=...` | Recall formatted for LLM |
+| `POST` | `/api/agents/:agent_id/reflect` | Generate a reflection |
+| `POST` | `/api/agents/:agent_id/edges` | Create an edge |
+| `GET` | `/api/agents/:agent_id/memories/:id/neighbors` | Get graph neighbors |
+| `POST` | `/api/agents/:agent_id/expand` | Expand graph from seeds |
+
+### Examples
+
+#### Create a memory
+
+```bash
+curl -X POST http://localhost:4000/api/agents/agent_1/memories \
+  -H "Content-Type: application/json" \
+  -d '{"text": "User prefers dark mode", "type": "fact", "importance": 0.7}'
+```
+
+#### Recall memories
+
+```bash
+curl "http://localhost:4000/api/agents/agent_1/memories/recall?q=user+preferences&limit=5"
+```
+
+#### Create an edge
+
+```bash
+curl -X POST http://localhost:4000/api/agents/agent_1/edges \
+  -H "Content-Type: application/json" \
+  -d '{"from_id": "abc123", "to_id": "def456", "type": "supports", "weight": 0.8}'
+```
+
+#### Generate a reflection
+
+```bash
+curl -X POST http://localhost:4000/api/agents/agent_1/reflect \
+  -H "Content-Type: application/json" \
+  -d '{"topic": "user preferences", "min_memories": 3}'
+```
+
+### Response Format
+
+All responses are JSON. Successful responses wrap data in a `data` key:
+
+```json
+{"data": {"id": "abc123", "type": "fact", ...}}
+```
+
+Errors return an `error` key:
+
+```json
+{"error": "memory not found"}
+```
+
+### Query Parameters
+
+Memory recall endpoints support these query parameters:
+
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| `q` | string | Search query (required for recall) |
+| `limit` | integer | Max results (default: 5) |
+| `threshold` | float | Min similarity score (default: 0.3) |
+| `type` | string | Filter by memory type |
+| `tags` | array | Filter by tags |
+| `expand_graph` | boolean | Include graph-connected memories |
+| `graph_depth` | integer | Expansion depth (default: 1) |
+| `allow_shared` | boolean | Include shared memories |
+| `allow_global` | boolean | Include global memories |
+| `tenant_id` | string | Tenant for multi-tenancy |
+
 ## Similarity Scoring
 
 GraphMem uses cosine similarity for semantic search. Scores range from -1 to 1, where:

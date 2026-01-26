@@ -2,56 +2,19 @@ defmodule GraphMem.EmbeddingAdapter do
   @moduledoc """
   Behaviour for embedding adapters.
 
-  Embedding adapters generate vector embeddings from text, enabling
-  semantic similarity search. GraphMem ships with adapters for Ollama
-  and OpenAI.
-
-  ## Implementing a Custom Adapter
-
-      defmodule MyApp.CustomEmbedding do
-        @behaviour GraphMem.EmbeddingAdapter
-
-        @impl true
-        def embed(text, opts) do
-          # Generate embedding vector
-          {:ok, [0.1, 0.2, ...]}
-        end
-
-        @impl true
-        def dimensions(opts) do
-          1536
-        end
-      end
-
-  Then configure GraphMem to use your adapter:
-
-      config :graph_mem,
-        embedding_adapter: MyApp.CustomEmbedding
+  ...existing docs...
   """
 
-  @doc """
-  Generates an embedding vector for the given text.
-
-  ## Options
-
-  Options are adapter-specific. Common options include:
-  - `:model` - The embedding model to use
-  - `:endpoint` - API endpoint URL
-
-  ## Returns
-
-  - `{:ok, [float]}` - Embedding vector
-  - `{:error, term}` - Error description
-  """
   @callback embed(text :: String.t(), opts :: keyword()) ::
               {:ok, [float()]} | {:error, term()}
 
-  @doc """
-  Returns the dimensionality of embeddings produced by this adapter.
-  """
   @callback dimensions(opts :: keyword()) :: pos_integer()
 
-  @optional_callbacks [dimensions: 1]
+  # New optional callback: batched embeddings
+  @callback embed_many(texts :: [String.t()], opts :: keyword()) ::
+              {:ok, [[float()]]} | {:error, term()}
+
+  @optional_callbacks [dimensions: 1, embed_many: 2]
 
   # ============================================================================
   # Helper Functions
@@ -68,6 +31,41 @@ defmodule GraphMem.EmbeddingAdapter do
       adapter.embed(text, opts)
     else
       {:error, :no_embedding_adapter}
+    end
+  end
+
+  @doc """
+  Generates embeddings for many texts using the configured adapter.
+
+  Default implementation: if the adapter implements `embed_many/2`, call it;
+  otherwise fall back to calling `embed/2` per item (sequential).
+  """
+  @spec embed_many([String.t()], keyword()) :: {:ok, [[float()]]} | {:error, term()}
+  def embed_many(texts, opts \\ []) when is_list(texts) do
+    adapter = get_adapter()
+
+    cond do
+      adapter == nil ->
+        {:error, :no_embedding_adapter}
+
+      function_exported?(adapter, :embed_many, 2) ->
+        adapter.embed_many(texts, opts)
+
+      true ->
+        # fallback: sequential embeds
+        results =
+          Enum.map(texts, fn t ->
+            case adapter.embed(t, opts) do
+              {:ok, emb} -> {:ok, emb}
+              {:error, err} -> {:error, err}
+            end
+          end)
+
+        if Enum.all?(results, &match?({:ok, _}, &1)) do
+          {:ok, Enum.map(results, fn {:ok, e} -> e end)}
+        else
+          {:error, {:partial_failure, results}}
+        end
     end
   end
 

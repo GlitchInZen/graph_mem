@@ -79,7 +79,11 @@ config :graph_mem,
 
   # HTTP client settings
   http_timeout: 30_000,
-  http_retry: 2
+  http_retry: 2,
+
+  # Async embedding settings
+  batch_timeout_ms: 50,    # Max wait before flushing batch
+  batch_size: 32           # Max batch size before flush
 ```
 
 #### PostgreSQL Setup
@@ -296,10 +300,18 @@ defmodule MyApp.CustomEmbedding do
     {:ok, [0.1, 0.2, ...]}
   end
 
+  # Optional: batch embedding for efficiency
+  @impl true
+  def embed_many(texts, opts) do
+    {:ok, Enum.map(texts, fn _ -> [0.1, 0.2, ...] end)}
+  end
+
   @impl true
   def dimensions(_opts), do: 768
 end
 ```
+
+**Note:** If `embed_many/2` is not implemented, GraphMem falls back to sequential `embed/2` calls.
 
 ## Edge Types
 
@@ -310,6 +322,57 @@ end
 | `contradicts` | Target conflicts with source |
 | `causes` | Source leads to target |
 | `follows` | Temporal ordering |
+
+## Async Embedding
+
+GraphMem computes embeddings asynchronously after storing memories. This keeps `remember/3` fast and non-blocking.
+
+### How It Works
+
+1. `remember/3` stores the memory immediately (without embedding)
+2. An async task computes the embedding via the batching system
+3. The embedding is persisted to the backend
+4. Auto-linking is triggered after the embedding exists
+
+### Batching
+
+Embedding requests are batched for efficiency. Configure batch behavior:
+
+```elixir
+config :graph_mem,
+  batch_timeout_ms: 50,  # Flush batch after 50ms of inactivity
+  batch_size: 32         # Flush when batch reaches 32 requests
+```
+
+### Oban Integration (Optional)
+
+For durable job processing with retries, configure Oban:
+
+```elixir
+config :graph_mem,
+  use_oban: true,
+  task_supervisor: GraphMem.TaskSupervisor  # fallback if Oban unavailable
+```
+
+Then define the worker module:
+
+```elixir
+defmodule GraphMem.Workers.EmbeddingIndexJob do
+  use Oban.Worker, queue: :embeddings, max_attempts: 3
+
+  @impl Oban.Worker
+  def perform(%Oban.Job{args: %{"memory_id" => memory_id, "agent_id" => agent_id}}) do
+    ctx = GraphMem.AccessContext.new(agent_id: agent_id)
+
+    case GraphMem.get_memory(agent_id, memory_id) do
+      {:ok, memory} -> GraphMem.Embedding.Indexer.do_index(memory, ctx)
+      {:error, :not_found} -> :ok  # Memory was deleted
+    end
+  end
+end
+```
+
+Without Oban, GraphMem uses `Task.Supervisor` for fire-and-forget background tasks.
 
 ## Supervision
 
@@ -431,9 +494,10 @@ The default `threshold` is 0.3, meaning results with similarity below 0.3 are fi
 ## Error Handling
 
 GraphMem gracefully handles embedding failures:
-- If the embedding adapter fails, memories are stored without embeddings
+- Memories are stored immediately; embeddings are computed asynchronously
+- If async embedding fails, warnings are logged but the memory remains
 - Semantic search will skip memories without embeddings
-- Warnings are logged for debugging
+- Batch failures are logged; individual requests receive error responses
 
 Configure timeouts and retries:
 

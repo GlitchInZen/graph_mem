@@ -55,8 +55,11 @@ defmodule GraphMem do
   - `:global` - Accessible by all agents
   """
 
+  require Logger
+
   alias GraphMem.{Memory, Edge, AccessContext}
-  alias GraphMem.Services.{Storage, Retrieval, Graph, Linker}
+  alias GraphMem.Services.{Storage, Retrieval, Graph}
+  alias GraphMem.Embedding.Indexer
 
   @doc """
   Starts the GraphMem application.
@@ -135,8 +138,11 @@ defmodule GraphMem do
     }
 
     with {:ok, memory} <- Storage.store(attrs, ctx) do
-      if should_auto_link?(opts) do
-        Linker.link_async(memory, ctx)
+      # Enqueue async indexing (embedding + persistence + auto-linking).
+      # Indexer handles linking after embedding is computed.
+      case Indexer.index_memory_async(memory, ctx) do
+        :ok -> :ok
+        {:error, reason} -> Logger.warning("Async indexing enqueue failed: #{inspect(reason)}")
       end
 
       {:ok, memory}
@@ -416,11 +422,6 @@ defmodule GraphMem do
 
   defp truncate(text, max_length) do
     String.slice(text, 0, max_length) <> "..."
-  end
-
-  defp should_auto_link?(opts) do
-    default = Application.get_env(:graph_mem, :auto_link, true)
-    Keyword.get(opts, :link, default)
   end
 
   defp generate_reflection(memories, topic, opts) do

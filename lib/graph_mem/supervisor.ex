@@ -18,6 +18,7 @@ defmodule GraphMem.Supervisor do
 
     children = [
       {Task.Supervisor, name: GraphMem.TaskSupervisor},
+      GraphMem.Embedding.Batcher,
       {backend, backend_opts}
     ]
 

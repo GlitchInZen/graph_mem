@@ -67,6 +67,58 @@ defmodule GraphMem.EmbeddingAdapters.Ollama do
   end
 
   @impl true
+  def embed_many(texts, opts \\ []) when is_list(texts) do
+    endpoint = get_endpoint(opts)
+    model = get_model(opts)
+    timeout = get_timeout(opts)
+    retry = get_retry(opts)
+
+    url = "#{endpoint}/api/embed"
+    body = Jason.encode!(%{model: model, input: texts})
+
+    req_opts = [
+      body: body,
+      headers: [{"content-type", "application/json"}],
+      receive_timeout: timeout,
+      retry: retry_opts(retry)
+    ]
+
+    case Req.post(url, req_opts) do
+      {:ok, %{status: 200, body: %{"embeddings" => embeddings}}} when is_list(embeddings) ->
+        {:ok, embeddings}
+
+      {:ok, %{status: 400, body: _body}} ->
+        # Ollama may not support batch; fall back to sequential
+        embed_many_sequential(texts, opts)
+
+      {:ok, %{status: status, body: body}} ->
+        Logger.warning("Ollama batch embedding failed: status=#{status} body=#{inspect(body)}")
+        {:error, {:ollama_error, status, body}}
+
+      {:error, %Req.TransportError{reason: :timeout}} ->
+        Logger.warning("Ollama batch embedding timed out after #{timeout}ms")
+        {:error, :timeout}
+
+      {:error, reason} ->
+        Logger.warning("Ollama batch embedding request failed: #{inspect(reason)}")
+        {:error, {:request_failed, reason}}
+    end
+  end
+
+  defp embed_many_sequential(texts, opts) do
+    Enum.reduce_while(texts, {:ok, []}, fn text, {:ok, acc} ->
+      case embed(text, opts) do
+        {:ok, emb} -> {:cont, {:ok, [emb | acc]}}
+        {:error, err} -> {:halt, {:error, err}}
+      end
+    end)
+    |> case do
+      {:ok, embs} -> {:ok, Enum.reverse(embs)}
+      {:error, err} -> {:error, err}
+    end
+  end
+
+  @impl true
   def dimensions(opts \\ []) do
     model = get_model(opts)
 

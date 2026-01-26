@@ -78,6 +78,62 @@ defmodule GraphMem.EmbeddingAdapters.OpenAI do
   end
 
   @impl true
+  def embed_many(texts, opts \\ []) when is_list(texts) do
+    api_key = get_api_key(opts)
+    model = get_model(opts)
+    timeout = get_timeout(opts)
+    retry = get_retry(opts)
+
+    if is_nil(api_key) or api_key == "" do
+      Logger.warning("OpenAI API key not configured")
+      {:error, :api_key_not_set}
+    else
+      body = Jason.encode!(%{model: model, input: texts})
+
+      req_opts = [
+        body: body,
+        headers: [
+          {"content-type", "application/json"},
+          {"authorization", "Bearer #{api_key}"}
+        ],
+        receive_timeout: timeout,
+        retry: retry_opts(retry)
+      ]
+
+      case Req.post(@api_url, req_opts) do
+        {:ok, %{status: 200, body: %{"data" => data}}} when is_list(data) ->
+          # Sort by index to ensure correct ordering (OpenAI may return out of order)
+          embeddings =
+            data
+            |> Enum.sort_by(& &1["index"])
+            |> Enum.map(& &1["embedding"])
+
+          if length(embeddings) == length(texts) do
+            {:ok, embeddings}
+          else
+            {:error, {:length_mismatch, expected: length(texts), got: length(embeddings)}}
+          end
+
+        {:ok, %{status: 429, body: body}} ->
+          Logger.warning("OpenAI rate limited (batch): #{inspect(body)}")
+          {:error, {:rate_limited, body}}
+
+        {:ok, %{status: status, body: body}} ->
+          Logger.warning("OpenAI batch embedding failed: status=#{status} body=#{inspect(body)}")
+          {:error, {:openai_error, status, body}}
+
+        {:error, %Req.TransportError{reason: :timeout}} ->
+          Logger.warning("OpenAI batch embedding timed out after #{timeout}ms")
+          {:error, :timeout}
+
+        {:error, reason} ->
+          Logger.warning("OpenAI batch embedding request failed: #{inspect(reason)}")
+          {:error, {:request_failed, reason}}
+      end
+    end
+  end
+
+  @impl true
   def dimensions(opts \\ []) do
     model = get_model(opts)
 

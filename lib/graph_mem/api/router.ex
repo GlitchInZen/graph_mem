@@ -9,16 +9,17 @@ defmodule GraphMem.API.Router do
 
   alias GraphMem.API.{MemoryController, GraphController}
 
-  plug Plug.Logger
-  plug CORSPlug
-  plug :match
+  plug(Plug.Logger)
+  plug(CORSPlug)
+  plug(:match)
 
-  plug Plug.Parsers,
+  plug(Plug.Parsers,
     parsers: [:json],
     pass: ["application/json"],
     json_decoder: Jason
+  )
 
-  plug :dispatch
+  plug(:dispatch)
 
   # Health check
   get "/health" do

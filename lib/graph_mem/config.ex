@@ -29,6 +29,11 @@ defmodule GraphMem.Config do
         http_timeout: 30_000,
         http_retry: 2,
 
+        # Qdrant configuration (optional)
+        qdrant_url: "http://localhost:6333",
+        qdrant_api_key: System.get_env("QDRANT_API_KEY"),
+        qdrant_collection: "graph_mem",
+
         # Reflection adapter (optional)
         reflection_adapter: nil
   """
@@ -166,6 +171,31 @@ defmodule GraphMem.Config do
   end
 
   @doc """
+  Returns the configured Qdrant base URL.
+  """
+  @spec qdrant_url() :: String.t() | nil
+  def qdrant_url do
+    Application.get_env(:graph_mem, :qdrant_url)
+  end
+
+  @doc """
+  Returns the configured Qdrant API key.
+  """
+  @spec qdrant_api_key() :: String.t() | nil
+  def qdrant_api_key do
+    Application.get_env(:graph_mem, :qdrant_api_key) ||
+      System.get_env("QDRANT_API_KEY")
+  end
+
+  @doc """
+  Returns the configured Qdrant collection name.
+  """
+  @spec qdrant_collection() :: String.t()
+  def qdrant_collection do
+    Application.get_env(:graph_mem, :qdrant_collection, "graph_mem")
+  end
+
+  @doc """
   Validates the configuration and returns any issues.
   """
   @spec validate() :: :ok | {:error, [String.t()]}
@@ -175,6 +205,13 @@ defmodule GraphMem.Config do
     issues =
       if backend() == GraphMem.Backends.Postgres and repo() == nil do
         ["Postgres backend requires :repo to be configured" | issues]
+      else
+        issues
+      end
+
+    issues =
+      if backend() == GraphMem.Backends.Qdrant and is_nil(qdrant_url()) do
+        ["Qdrant backend requires :qdrant_url to be configured" | issues]
       else
         issues
       end

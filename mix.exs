@@ -95,7 +95,8 @@ defmodule GraphMem.MixProject do
         "Storage Backends": [
           GraphMem.Backend,
           GraphMem.Backends.ETS,
-          GraphMem.Backends.Postgres
+          GraphMem.Backends.Postgres,
+          GraphMem.Backends.Qdrant
         ],
         "Embedding Adapters": [
           GraphMem.EmbeddingAdapter,

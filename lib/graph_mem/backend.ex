@@ -3,7 +3,7 @@ defmodule GraphMem.Backend do
   Behaviour for pluggable storage backends.
 
   Backends handle the storage, retrieval, and search of memories and edges.
-  GraphMem ships with an ETS backend (default) and an optional Postgres backend.
+  GraphMem ships with an ETS backend (default), Postgres backend, and Qdrant backend.
 
   ## Implementing a Custom Backend
 

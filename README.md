@@ -11,7 +11,7 @@ Graph-based long-term memory for AI agents. GraphMem provides persistent memory 
 - **Semantic memory recall** via vector embeddings (cosine similarity)
 - **Graph-based relationships** between memories with typed edges
 - **Multi-agent isolation** with scoped sharing (private/shared/global)
-- **Pluggable backends** - PostgreSQL (recommended) or ETS (development)
+- **Pluggable backends** - PostgreSQL, Qdrant, or ETS (development)
 - **Pluggable embedding adapters** - Ollama (default) or OpenAI
 - **Automatic memory linking** based on semantic similarity
 - **No heavy dependencies** - works with or without Phoenix/Ecto
@@ -114,6 +114,17 @@ For development or when PostgreSQL is not available, GraphMem automatically fall
 config :graph_mem,
   backend: GraphMem.Backends.ETS,
   embedding_adapter: GraphMem.EmbeddingAdapters.Ollama
+```
+
+### Qdrant Backend
+
+```elixir
+config :graph_mem,
+  backend: GraphMem.Backends.Qdrant,
+  qdrant_url: "http://localhost:6333",
+  qdrant_api_key: System.get_env("QDRANT_API_KEY"),
+  qdrant_collection: "graph_mem",
+  embedding_dimensions: 768
 ```
 
 **Note:** ETS storage is in-memory only and does not persist across restarts.
@@ -247,6 +258,21 @@ Features:
 - Graph expansion via recursive CTEs
 - Full index support for fast queries
 - Persistent storage across restarts
+
+### Qdrant Backend
+
+Use Qdrant for a hosted or self-managed vector database with a single collection
+backing both memory vectors and graph edges. Graph expansion is executed in
+Elixir using breadth-first traversal over stored edges.
+
+```elixir
+config :graph_mem,
+  backend: GraphMem.Backends.Qdrant,
+  qdrant_url: "http://localhost:6333",
+  qdrant_api_key: System.get_env("QDRANT_API_KEY"),
+  qdrant_collection: "graph_mem",
+  embedding_dimensions: 768
+```
 
 ### Custom Backend
 

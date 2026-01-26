@@ -26,45 +26,36 @@ defmodule GraphMem.Embedding.Indexer do
   @doc """
   Enqueues async embedding indexing for a memory.
 
+  Uses Oban for durable job processing. Falls back to Task.Supervisor if Oban
+  is not running (e.g., in tests without Oban started).
+
   Returns `:ok` on successful enqueue, `{:error, reason}` on failure.
   """
   @spec index_memory_async(Memory.t(), AccessContext.t()) :: :ok | {:error, term()}
   def index_memory_async(%Memory{} = memory, %AccessContext{} = ctx) do
-    use_oban = Application.get_env(:graph_mem, :use_oban, false)
-    task_supervisor = Application.get_env(:graph_mem, :task_supervisor, GraphMem.TaskSupervisor)
-
-    cond do
-      use_oban and oban_available?() ->
-        enqueue_oban_job(memory, ctx)
-
-      true ->
-        enqueue_task(memory, ctx, task_supervisor)
+    if oban_running?() do
+      enqueue_oban_job(memory, ctx)
+    else
+      enqueue_task(memory, ctx)
     end
   end
 
-  defp oban_available? do
-    Code.ensure_loaded?(Oban) and Process.whereis(Oban) != nil
+  defp oban_running? do
+    Process.whereis(Oban) != nil
   end
 
   defp enqueue_oban_job(memory, ctx) do
-    if Code.ensure_loaded?(GraphMem.Workers.EmbeddingIndexJob) do
-      args = %{memory_id: memory.id, agent_id: ctx.agent_id, tenant_id: ctx.tenant_id}
+    args = %{memory_id: memory.id, agent_id: ctx.agent_id, tenant_id: ctx.tenant_id}
 
-      case GraphMem.Workers.EmbeddingIndexJob.new(args) |> Oban.insert() do
-        {:ok, _job} -> :ok
-        {:error, reason} -> {:error, {:oban_insert_failed, reason}}
-      end
-    else
-      Logger.warning(
-        "Oban enabled but GraphMem.Workers.EmbeddingIndexJob not defined; falling back to Task"
-      )
-
-      task_supervisor = Application.get_env(:graph_mem, :task_supervisor, GraphMem.TaskSupervisor)
-      enqueue_task(memory, ctx, task_supervisor)
+    case GraphMem.Workers.EmbeddingIndexJob.new(args) |> Oban.insert() do
+      {:ok, _job} -> :ok
+      {:error, reason} -> {:error, {:oban_insert_failed, reason}}
     end
   end
 
-  defp enqueue_task(memory, ctx, task_supervisor) do
+  defp enqueue_task(memory, ctx) do
+    task_supervisor = Application.get_env(:graph_mem, :task_supervisor, GraphMem.TaskSupervisor)
+
     case Task.Supervisor.start_child(task_supervisor, fn -> do_index(memory, ctx) end) do
       {:ok, _pid} -> :ok
       {:error, reason} -> {:error, {:task_start_failed, reason}}

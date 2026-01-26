@@ -43,6 +43,9 @@ defmodule GraphMem.MixProject do
       {:plug, "~> 1.16"},
       {:cors_plug, "~> 3.0"},
 
+      # Background job processing
+      {:oban, "~> 2.18"},
+
       # Optional: Postgres backend (recommended for production)
       {:ecto_sql, "~> 3.10", optional: true},
       {:postgrex, "~> 0.17", optional: true},
@@ -108,6 +111,11 @@ defmodule GraphMem.MixProject do
           GraphMem.Services.Graph,
           GraphMem.Services.Linker,
           GraphMem.Services.Reduction
+        ],
+        "Async Embedding": [
+          GraphMem.Embedding.Batcher,
+          GraphMem.Embedding.Indexer,
+          GraphMem.Workers.EmbeddingIndexJob
         ]
       ]
     ]

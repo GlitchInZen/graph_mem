@@ -12,11 +12,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Async Embedding Indexer** - Embeddings are now computed asynchronously after memory storage
   - `GraphMem.Embedding.Batcher` - Batches embedding requests for efficiency (configurable batch size/timeout)
   - `GraphMem.Embedding.Indexer` - Background worker for embedding computation and persistence
-  - Supports Task.Supervisor (default) or Oban for durable job processing
+  - `GraphMem.Workers.EmbeddingIndexJob` - Oban worker for durable job processing
   - Auto-linking triggered after embedding is computed
 - **Batch Embedding API** - New `embed_many/2` callback on `EmbeddingAdapter` behaviour
   - Ollama adapter: native batch support with sequential fallback
   - OpenAI adapter: native batch support with proper ordering by index
+- **Oban Integration** - Added `oban` as a required dependency for background job processing
+  - Automatic setup when a repo is configured
+  - Falls back to Task.Supervisor in tests or when no repo is available
 - **Web API** - HTTP REST API for external access to memory operations
   - All core operations: create, list, get, delete memories
   - Semantic recall and context endpoints

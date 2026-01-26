@@ -33,6 +33,9 @@ def deps do
 end
 ```
 
+**Note:** GraphMem includes Oban for background job processing. When using PostgreSQL,
+Oban will automatically use your configured repo. See [Oban Setup](#oban-setup) for details.
+
 ### Minimal Installation (ETS only)
 
 For development or small-scale use without PostgreSQL:
@@ -42,6 +45,8 @@ def deps do
   [{:graph_mem, "~> 0.1.0"}]
 end
 ```
+
+Without a repo configured, async embedding uses Task.Supervisor instead of Oban.
 
 ## Quick Start
 
@@ -344,35 +349,43 @@ config :graph_mem,
   batch_size: 32         # Flush when batch reaches 32 requests
 ```
 
-### Oban Integration (Optional)
+### Oban Setup
 
-For durable job processing with retries, configure Oban:
+GraphMem uses Oban for durable background job processing. When a PostgreSQL repo is
+configured, Oban is automatically started with the `:embeddings` queue.
+
+**Requirements for Oban:**
+
+1. A configured `:repo` in your GraphMem config
+2. Oban migrations in your database (run `mix oban.install` if not already done)
 
 ```elixir
 config :graph_mem,
-  use_oban: true,
-  task_supervisor: GraphMem.TaskSupervisor  # fallback if Oban unavailable
+  repo: MyApp.Repo
+  # Oban will automatically use this repo with queues: [embeddings: 10]
 ```
 
-Then define the worker module:
+**Custom Oban configuration:**
 
 ```elixir
-defmodule GraphMem.Workers.EmbeddingIndexJob do
-  use Oban.Worker, queue: :embeddings, max_attempts: 3
-
-  @impl Oban.Worker
-  def perform(%Oban.Job{args: %{"memory_id" => memory_id, "agent_id" => agent_id}}) do
-    ctx = GraphMem.AccessContext.new(agent_id: agent_id)
-
-    case GraphMem.get_memory(agent_id, memory_id) do
-      {:ok, memory} -> GraphMem.Embedding.Indexer.do_index(memory, ctx)
-      {:error, :not_found} -> :ok  # Memory was deleted
-    end
-  end
-end
+# In your GraphMem.start_link/1 opts:
+GraphMem.start_link(
+  oban: [
+    repo: MyApp.Repo,
+    queues: [embeddings: 20],  # Increase concurrency
+    plugins: [Oban.Plugins.Pruner]
+  ]
+)
 ```
 
-Without Oban, GraphMem uses `Task.Supervisor` for fire-and-forget background tasks.
+**Disable Oban (use Task.Supervisor):**
+
+```elixir
+GraphMem.start_link(oban: false)
+```
+
+In tests or when no repo is configured, GraphMem automatically falls back to
+`Task.Supervisor` for async embedding.
 
 ## Supervision
 

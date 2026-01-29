@@ -456,6 +456,116 @@ config :graph_mem,
 | `GET` | `/api/agents/:agent_id/memories/:id/neighbors` | Get graph neighbors |
 | `POST` | `/api/agents/:agent_id/expand` | Expand graph from seeds |
 
+## Agent Integration Interface (Design)
+
+This section describes a thin, agent-friendly interface layered on top of the HTTP API so
+tools like Claude Code, AMP, or Codex can use GraphMem consistently. The goal is to keep
+the agent tool surface small while supporting reliable memory CRUD, recall, and graph ops.
+
+### Tool Surface (Suggested)
+
+Expose these tools to the agent (HTTP under the hood):
+
+| Tool | Purpose | HTTP endpoint |
+|------|---------|---------------|
+| `memory.write` | Store a memory | `POST /api/agents/:agent_id/memories` |
+| `memory.search` | Semantic recall | `GET /api/agents/:agent_id/memories/recall` |
+| `memory.context` | Recall formatted for prompts | `GET /api/agents/:agent_id/memories/context` |
+| `memory.link` | Create a typed edge | `POST /api/agents/:agent_id/edges` |
+| `memory.reflect` | Synthesize reflection | `POST /api/agents/:agent_id/reflect` |
+
+### Shared Memory Schema
+
+Encourage agents to use a consistent schema so cross-agent recall works:
+
+```json
+{
+  "text": "User prefers dark mode",
+  "type": "fact",
+  "importance": 0.7,
+  "confidence": 0.9,
+  "scope": "shared",
+  "tenant_id": "team_a",
+  "tags": ["preference", "ui"],
+  "metadata": {
+    "source": "conversation",
+    "trace_id": "req_123",
+    "tool": "agent_write"
+  }
+}
+```
+
+### Usage Guidelines for Agents
+
+- **Write on commit-worthy events**: user preferences, decisions, or outcomes with
+  long-term value. Use `type` and `tags` to keep recall precise.
+- **Search before write**: use `memory.search` to avoid duplication and to link related
+  memories via `memory.link`.
+- **Use scopes intentionally**: default to `private`; promote to `shared` only when the
+  memory is trustworthy and relevant to other agents/tenants.
+- **Annotate confidence**: lower-confidence items are auto-demoted to `private`, preventing
+  low-quality data from polluting shared memories.
+
+### Example Tool Calls
+
+#### memory.write
+
+```http
+POST /api/agents/agent_1/memories
+Content-Type: application/json
+
+{
+  "text": "Release 1.2 introduced a migration ordering issue",
+  "type": "observation",
+  "importance": 0.8,
+  "confidence": 0.85,
+  "scope": "shared",
+  "tenant_id": "platform",
+  "tags": ["release", "db"]
+}
+```
+
+#### memory.search
+
+```http
+GET /api/agents/agent_1/memories/recall?q=migration+issues&limit=5&expand_graph=true&graph_depth=1
+```
+
+#### memory.context
+
+```http
+GET /api/agents/agent_1/memories/context?q=deployment+history&format=structured&max_tokens=1200
+```
+
+#### memory.link
+
+```http
+POST /api/agents/agent_1/edges
+Content-Type: application/json
+
+{"from_id": "abc123", "to_id": "def456", "type": "causes", "weight": 0.8}
+```
+
+#### memory.reflect
+
+```http
+POST /api/agents/agent_1/reflect
+Content-Type: application/json
+
+{"topic": "release stability", "min_memories": 3}
+```
+
+### Agent Prompting Pattern
+
+When integrating with LLM tool calling, you can supply a short policy like:
+
+```
+Use memory.search before responding when the user asks about historical context.
+Use memory.write to store new preferences, decisions, or stable facts.
+Use memory.context to inject summarized memory into the system/user prompt.
+Use memory.link when two memories reference the same event or causal chain.
+```
+
 ### Examples
 
 #### Create a memory

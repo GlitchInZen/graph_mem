@@ -20,7 +20,7 @@ defmodule GraphMem.Embedding.Indexer do
   """
 
   require Logger
-  alias GraphMem.{Memory, AccessContext}
+  alias GraphMem.{Memory, AccessContext, Config}
   alias GraphMem.Services.Linker
 
   @doc """
@@ -54,7 +54,7 @@ defmodule GraphMem.Embedding.Indexer do
   end
 
   defp enqueue_task(memory, ctx) do
-    task_supervisor = Application.get_env(:graph_mem, :task_supervisor, GraphMem.TaskSupervisor)
+    task_supervisor = Config.task_supervisor()
 
     case Task.Supervisor.start_child(task_supervisor, fn -> do_index(memory, ctx) end) do
       {:ok, _pid} -> :ok

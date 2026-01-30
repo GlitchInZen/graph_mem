@@ -24,6 +24,11 @@ defmodule GraphMem.Config do
         # Auto-linking configuration
         auto_link: true,
         link_threshold: 0.75,
+        link_max_candidates: 20,
+        link_max_links: 5,
+
+        # Async task supervision
+        task_supervisor: GraphMem.TaskSupervisor,
 
         # HTTP client options
         http_timeout: 30_000,
@@ -147,6 +152,34 @@ defmodule GraphMem.Config do
   end
 
   @doc """
+  Returns the maximum candidate count for auto-linking.
+  """
+  @spec link_max_candidates() :: pos_integer()
+  def link_max_candidates do
+    max_candidates = Application.get_env(:graph_mem, :link_max_candidates, 20)
+    validate_positive_integer!(max_candidates, :link_max_candidates)
+    max_candidates
+  end
+
+  @doc """
+  Returns the maximum number of links to create for auto-linking.
+  """
+  @spec link_max_links() :: pos_integer()
+  def link_max_links do
+    max_links = Application.get_env(:graph_mem, :link_max_links, 5)
+    validate_positive_integer!(max_links, :link_max_links)
+    max_links
+  end
+
+  @doc """
+  Returns the Task.Supervisor name for background tasks.
+  """
+  @spec task_supervisor() :: module()
+  def task_supervisor do
+    Application.get_env(:graph_mem, :task_supervisor, GraphMem.TaskSupervisor)
+  end
+
+  @doc """
   Returns the HTTP timeout in milliseconds.
   """
   @spec http_timeout() :: pos_integer()
@@ -223,6 +256,25 @@ defmodule GraphMem.Config do
         t -> ["link_threshold must be between 0.0 and 1.0, got: #{inspect(t)}" | issues]
       end
 
+    issues =
+      case Application.get_env(:graph_mem, :link_max_candidates) do
+        nil ->
+          issues
+
+        value when is_integer(value) and value > 0 ->
+          issues
+
+        value ->
+          ["link_max_candidates must be a positive integer, got: #{inspect(value)}" | issues]
+      end
+
+    issues =
+      case Application.get_env(:graph_mem, :link_max_links) do
+        nil -> issues
+        value when is_integer(value) and value > 0 -> issues
+        value -> ["link_max_links must be a positive integer, got: #{inspect(value)}" | issues]
+      end
+
     if Enum.empty?(issues) do
       :ok
     else
@@ -246,5 +298,13 @@ defmodule GraphMem.Config do
 
   defp validate_threshold!(value, name) do
     raise ArgumentError, "#{name} must be between 0.0 and 1.0, got: #{inspect(value)}"
+  end
+
+  defp validate_positive_integer!(value, _name) when is_integer(value) and value > 0 do
+    :ok
+  end
+
+  defp validate_positive_integer!(value, name) do
+    raise ArgumentError, "#{name} must be a positive integer, got: #{inspect(value)}"
   end
 end

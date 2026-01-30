@@ -6,27 +6,32 @@ defmodule GraphMem.Services.Linker do
   using background tasks (no Oban dependency).
   """
 
-  alias GraphMem.{Memory, AccessContext, Backend}
-  alias GraphMem.Services.Graph
+  require Logger
 
-  @similarity_threshold 0.75
-  @max_candidates 20
-  @max_links 5
+  alias GraphMem.{Memory, AccessContext, Backend, Config}
+  alias GraphMem.Services.Graph
 
   @doc """
   Links a memory to similar memories asynchronously.
 
   Uses Task.Supervisor to run the linking in the background.
   """
-  @spec link_async(Memory.t(), AccessContext.t()) :: :ok
+  @spec link_async(Memory.t(), AccessContext.t()) :: :ok | {:error, term()}
   def link_async(%Memory{} = memory, %AccessContext{} = ctx) do
     if memory.embedding do
-      Task.Supervisor.start_child(GraphMem.TaskSupervisor, fn ->
-        link_sync(memory, ctx)
-      end)
-    end
+      task_supervisor = Config.task_supervisor()
 
-    :ok
+      case Task.Supervisor.start_child(task_supervisor, fn -> link_sync(memory, ctx) end) do
+        {:ok, _pid} ->
+          :ok
+
+        {:error, reason} ->
+          Logger.warning("Linker async start failed: #{inspect(reason)}")
+          {:error, {:task_start_failed, reason}}
+      end
+    else
+      :ok
+    end
   end
 
   @doc """
@@ -58,9 +63,13 @@ defmodule GraphMem.Services.Linker do
   # Private
 
   defp find_similar_memories(%Memory{} = memory, %AccessContext{} = ctx) do
+    threshold = Config.link_threshold()
+    max_candidates = Config.link_max_candidates()
+    max_links = Config.link_max_links()
+
     opts = [
-      limit: @max_candidates,
-      threshold: @similarity_threshold
+      limit: max_candidates,
+      threshold: threshold
     ]
 
     case Backend.get_backend().search_memories(memory.embedding, ctx, opts) do
@@ -68,8 +77,8 @@ defmodule GraphMem.Services.Linker do
         candidates =
           results
           |> Enum.reject(&(&1.memory.id == memory.id))
-          |> Enum.filter(&(&1.score >= @similarity_threshold))
-          |> Enum.take(@max_links)
+          |> Enum.filter(&(&1.score >= threshold))
+          |> Enum.take(max_links)
 
         {:ok, candidates}
 

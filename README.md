@@ -81,6 +81,11 @@ config :graph_mem,
   # Auto-link similar memories
   auto_link: true,
   link_threshold: 0.75,
+  link_max_candidates: 20,
+  link_max_links: 5,
+
+  # Background task supervisor
+  task_supervisor: GraphMem.TaskSupervisor,
 
   # HTTP client settings
   http_timeout: 30_000,

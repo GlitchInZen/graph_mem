@@ -11,10 +11,10 @@ Graph-based long-term memory for AI agents. GraphMem provides persistent memory 
 - **Semantic memory recall** via vector embeddings (cosine similarity)
 - **Graph-based relationships** between memories with typed edges
 - **Multi-agent isolation** with scoped sharing (private/shared/global)
-- **Pluggable backends** - PostgreSQL, Qdrant, or ETS (development)
+- **Pluggable backends** - PostgreSQL (default), Qdrant, or ETS (development)
 - **Pluggable embedding adapters** - Ollama (default) or OpenAI
 - **Automatic memory linking** based on semantic similarity
-- **No heavy dependencies** - works with or without Phoenix/Ecto
+- **Production-ready** - PostgreSQL with pgvector for persistent storage
 
 ## Installation
 
@@ -38,7 +38,7 @@ Oban will automatically use your configured repo. See [Oban Setup](#oban-setup) 
 
 ### Minimal Installation (ETS only)
 
-For development or small-scale use without PostgreSQL:
+For development or testing without PostgreSQL:
 
 ```elixir
 def deps do
@@ -113,7 +113,7 @@ mix ecto.migrate
 
 ### ETS Backend (Development)
 
-For development or when PostgreSQL is not available, GraphMem automatically falls back to ETS:
+For development or when PostgreSQL is not available, configure the ETS backend explicitly:
 
 ```elixir
 config :graph_mem,
@@ -239,7 +239,7 @@ Memories with confidence below 0.7 are automatically demoted to `private` scope,
 
 ## Pluggable Backends
 
-### ETS Backend (Default Fallback)
+### ETS Backend (Optional Fallback)
 
 In-memory storage, suitable for development:
 

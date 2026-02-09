@@ -12,7 +12,7 @@ defmodule GraphMem do
   - **Semantic memory recall** via vector embeddings
   - **Graph-based relationships** between memories
   - **Multi-agent isolation** with scoped sharing
-  - **Pluggable backends** (ETS default, Postgres optional)
+  - **Pluggable backends** (Postgres default, ETS optional)
   - **Pluggable embedding adapters** (Ollama, OpenAI)
 
   ## Quick Start
@@ -32,7 +32,7 @@ defmodule GraphMem do
   ## Configuration
 
       config :graph_mem,
-        backend: GraphMem.Backends.ETS,
+        backend: GraphMem.Backends.Postgres,
         embedding_adapter: GraphMem.EmbeddingAdapters.Ollama,
         embedding_model: "nomic-embed-text",
         ollama_endpoint: "http://localhost:11434",

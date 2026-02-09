@@ -46,10 +46,10 @@ defmodule GraphMem.MixProject do
       # Background job processing
       {:oban, "~> 2.18"},
 
-      # Optional: Postgres backend (recommended for production)
-      {:ecto_sql, "~> 3.10", optional: true},
-      {:postgrex, "~> 0.17", optional: true},
-      {:pgvector, "~> 0.3", optional: true},
+      # Required: Postgres backend (default)
+      {:ecto_sql, "~> 3.10"},
+      {:postgrex, "~> 0.17"},
+      {:pgvector, "~> 0.3"},
 
       # Dev/Test
       {:ex_doc, "~> 0.30", only: :dev, runtime: false},
@@ -62,7 +62,7 @@ defmodule GraphMem.MixProject do
     """
     Graph-based long-term memory for AI agents. Provides persistent memory with
     automatic relationship discovery, semantic search via vector embeddings, and
-    graph-based retrieval. Features pluggable storage backends (ETS, PostgreSQL)
+    graph-based retrieval. Features pluggable storage backends (PostgreSQL default, ETS optional)
     and embedding adapters (Ollama, OpenAI).
     """
   end
@@ -94,8 +94,8 @@ defmodule GraphMem.MixProject do
         ],
         "Storage Backends": [
           GraphMem.Backend,
-          GraphMem.Backends.ETS,
           GraphMem.Backends.Postgres,
+          GraphMem.Backends.ETS,
           GraphMem.Backends.Qdrant
         ],
         "Embedding Adapters": [

@@ -3,7 +3,7 @@ defmodule GraphMem.Backend do
   Behaviour for pluggable storage backends.
 
   Backends handle the storage, retrieval, and search of memories and edges.
-  GraphMem ships with an ETS backend (default), Postgres backend, and Qdrant backend.
+  GraphMem ships with a Postgres backend (default), ETS backend, and Qdrant backend.
 
   ## Implementing a Custom Backend
 
@@ -169,8 +169,8 @@ defmodule GraphMem.Backend do
   Returns the currently configured backend module.
 
   Uses `GraphMem.Config.backend/0` for dynamic backend selection:
-  - Postgres when `:repo` is configured and Ecto is available
-  - ETS as fallback for zero-dependency usage
+  - Postgres when Ecto/Postgres deps are available (default)
+  - ETS as fallback when Postgres deps are not available
   """
   @spec get_backend() :: module()
   def get_backend do

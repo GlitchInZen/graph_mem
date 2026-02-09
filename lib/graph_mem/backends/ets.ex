@@ -2,7 +2,7 @@ defmodule GraphMem.Backends.ETS do
   @moduledoc """
   ETS-based storage backend.
 
-  The default backend for GraphMem. Stores memories and edges in ETS tables,
+  ETS-based storage backend. Stores memories and edges in ETS tables,
   with in-memory vector similarity search. Suitable for development, testing,
   and small-scale production use.
 

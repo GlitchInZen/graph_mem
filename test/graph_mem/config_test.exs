@@ -4,19 +4,27 @@ defmodule GraphMem.ConfigTest do
   alias GraphMem.Config
 
   setup do
+    original_backend = Application.get_env(:graph_mem, :backend)
+
     on_exit(fn ->
       Application.put_env(:graph_mem, :embedding_adapter, nil)
+
+      if original_backend do
+        Application.put_env(:graph_mem, :backend, original_backend)
+      else
+        Application.delete_env(:graph_mem, :backend)
+      end
     end)
 
     :ok
   end
 
   describe "backend/0" do
-    test "returns ETS when no repo configured" do
+    test "returns Postgres when no backend configured and Postgres available" do
       Application.delete_env(:graph_mem, :backend)
       Application.delete_env(:graph_mem, :repo)
 
-      assert Config.backend() == GraphMem.Backends.ETS
+      assert Config.backend() == GraphMem.Backends.Postgres
     end
 
     test "returns configured backend when explicitly set" do
@@ -103,12 +111,20 @@ defmodule GraphMem.ConfigTest do
   end
 
   describe "validate/0" do
-    test "returns ok for valid config" do
-      Application.delete_env(:graph_mem, :backend)
+    test "returns ok for valid config with ETS backend" do
+      Application.put_env(:graph_mem, :backend, GraphMem.Backends.ETS)
       Application.delete_env(:graph_mem, :repo)
       Application.delete_env(:graph_mem, :link_threshold)
 
       assert Config.validate() == :ok
+    end
+
+    test "returns error when Postgres backend without repo" do
+      Application.put_env(:graph_mem, :backend, GraphMem.Backends.Postgres)
+      Application.delete_env(:graph_mem, :repo)
+
+      assert {:error, issues} = Config.validate()
+      assert "Postgres backend requires :repo to be configured" in issues
     end
 
     test "returns error for invalid link_threshold" do

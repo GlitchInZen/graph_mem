@@ -59,6 +59,6 @@ defmodule GraphMem.Supervisor do
   end
 
   defp get_backend do
-    Application.get_env(:graph_mem, :backend, GraphMem.Backends.ETS)
+    Application.get_env(:graph_mem, :backend, GraphMem.Backends.Postgres)
   end
 end

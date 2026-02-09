@@ -8,7 +8,7 @@ defmodule GraphMem.Config do
   ## Configuration Options
 
       config :graph_mem,
-        # Storage backend (Postgres when repo is configured, ETS fallback)
+        # Storage backend (Postgres default, ETS optional)
         backend: GraphMem.Backends.Postgres,
         repo: MyApp.Repo,
 
@@ -50,8 +50,8 @@ defmodule GraphMem.Config do
 
   Uses the following priority:
   1. Explicitly configured `:backend`
-  2. Postgres if `:repo` is configured and Ecto is available
-  3. ETS as fallback (with warning)
+  2. Postgres if Ecto and Postgres deps are available (default)
+  3. ETS as fallback when Postgres deps are not available
   """
   @spec backend() :: module()
   def backend do
@@ -61,17 +61,15 @@ defmodule GraphMem.Config do
       configured != nil ->
         configured
 
-      repo_configured?() and postgres_available?() ->
+      postgres_available?() ->
         GraphMem.Backends.Postgres
 
       true ->
-        if Application.get_env(:graph_mem, :repo) do
-          Logger.warning("""
-          GraphMem: Repo configured but Postgres backend not available.
-          Ensure you have ecto_sql, postgrex, and pgvector in your dependencies.
-          Falling back to ETS backend (in-memory, non-persistent).
-          """)
-        end
+        Logger.warning("""
+        GraphMem: Postgres backend not available.
+        Ensure you have ecto_sql, postgrex, and pgvector in your dependencies.
+        Falling back to ETS backend (in-memory, non-persistent).
+        """)
 
         GraphMem.Backends.ETS
     end
@@ -280,10 +278,6 @@ defmodule GraphMem.Config do
     else
       {:error, Enum.reverse(issues)}
     end
-  end
-
-  defp repo_configured? do
-    Application.get_env(:graph_mem, :repo) != nil
   end
 
   defp postgres_available? do
